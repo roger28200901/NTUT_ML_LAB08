@@ -1,0 +1,22 @@
+certifi==2024.8.30
+charset-normalizer==2.0.12
+cloudpickle @ file:///Users/ktietz/demo/mc3/conda-bld/cloudpickle_1629142150447/work
+cycler==0.11.0
+future==0.18.2
+gym==0.8.0
+idna==3.10
+kiwisolver==1.3.1
+matplotlib==3.3.4
+numpy @ file:///opt/concourse/worker/volumes/live/68a2c43e-e7be-4ce7-6ffe-0c4538e24200/volume/numpy_and_numpy_base_1603558310275/work
+pandas==1.1.5
+Pillow==8.4.0
+protobuf==3.19.6
+pyglet @ file:///Users/runner/miniforge3/conda-bld/pyglet_1618311496735/work
+pyparsing==3.1.4
+python-dateutil==2.9.0.post0
+pytz==2024.2
+requests==2.27.1
+scipy @ file:///opt/concourse/worker/volumes/live/01799c8f-3d00-4c6b-5be2-f58e344bd56a/volume/scipy_1597719773996/work
+six==1.16.0
+tensorflow==1.0.0
+urllib3==1.26.20

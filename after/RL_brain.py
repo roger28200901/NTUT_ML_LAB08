@@ -21,13 +21,13 @@ class DeepQNetwork:
             self,
             n_actions,      # 動作空間大小
             n_features,     # 狀態特徵數量
-            learning_rate=0.0005,     # 優化學習率
+            learning_rate=0.001,     # 略微提高學習率
             reward_decay=0.95,        # 提高獎勵衰減率 (gamma)
             e_greedy=0.9,             # epsilon-貪婪策略中的 epsilon 最大值
-            replace_target_iter=200,  # 頻繁更新目標網絡
-            memory_size=10000,        # 增加記憶體大小
-            batch_size=64,            # 增大批次訓練大小
-            e_greedy_increment=0.001,  # 探索率增量
+            replace_target_iter=100,  # 減少目標網絡更新間隔
+            memory_size=5000,        # 適當減少記憶體大小以加快採樣
+            batch_size=32,            # 減小批次大小以加快訓練
+            e_greedy_increment=0.002,  # 加快探索率增長
             output_graph=False,       # 是否輸出計算圖
     ):
         self.n_actions = n_actions
@@ -67,32 +67,33 @@ class DeepQNetwork:
     def _build_net(self):
         # ------------------ build evaluate_net ------------------
         self.s = tf.placeholder(
-            tf.float32, [None, self.n_features], name='s')  # input
+            tf.float32, [None, self.n_features], name='s')  # 輸入
         self.q_target = tf.placeholder(
-            # for calculating loss
-            tf.float32, [None, self.n_actions], name='Q_target')
+            tf.float32, [None, self.n_actions], name='Q_target')  # 用於計算損失
+        
         with tf.variable_scope('eval_net'):
-            # c_names(collections_names) are the collections to store variables
-            c_names, n_l1, w_initializer, b_initializer = \
-                ['eval_net_params', tf.GraphKeys.GLOBAL_VARIABLES], 10, \
-                tf.random_normal_initializer(
-                    0., 0.3), tf.constant_initializer(0.1)  # config of layers
+            # c_names 是用於存儲變量的集合
+            c_names, n_l1, n_l2, w_initializer, b_initializer = \
+                ['eval_net_params', tf.GraphKeys.GLOBAL_VARIABLES], 64, 32, \
+                tf.random_normal_initializer(0., 0.3), tf.constant_initializer(0.1)
 
-            # first layer. collections is used later when assign to target net
+            # 第一層使用 ELU 激活函數
             with tf.variable_scope('l1'):
-                w1 = tf.get_variable(
-                    'w1', [self.n_features, n_l1], initializer=w_initializer, collections=c_names)
-                b1 = tf.get_variable(
-                    'b1', [1, n_l1], initializer=b_initializer, collections=c_names)
-                l1 = tf.nn.relu(tf.matmul(self.s, w1) + b1)
-
-            # second layer. collections is used later when assign to target net
+                w1 = tf.get_variable('w1', [self.n_features, n_l1], initializer=w_initializer, collections=c_names)
+                b1 = tf.get_variable('b1', [1, n_l1], initializer=b_initializer, collections=c_names)
+                l1 = tf.nn.elu(tf.matmul(self.s, w1) + b1)
+                
+            # 新增一層
             with tf.variable_scope('l2'):
-                w2 = tf.get_variable(
-                    'w2', [n_l1, self.n_actions], initializer=w_initializer, collections=c_names)
-                b2 = tf.get_variable(
-                    'b2', [1, self.n_actions], initializer=b_initializer, collections=c_names)
-                self.q_eval = tf.matmul(l1, w2) + b2
+                w2 = tf.get_variable('w2', [n_l1, n_l2], initializer=w_initializer, collections=c_names)
+                b2 = tf.get_variable('b2', [1, n_l2], initializer=b_initializer, collections=c_names)
+                l2 = tf.nn.elu(tf.matmul(l1, w2) + b2)
+
+            # 輸出層
+            with tf.variable_scope('l3'):
+                w3 = tf.get_variable('w3', [n_l2, self.n_actions], initializer=w_initializer, collections=c_names)
+                b3 = tf.get_variable('b3', [1, self.n_actions], initializer=b_initializer, collections=c_names)
+                self.q_eval = tf.matmul(l2, w3) + b3
 
         with tf.variable_scope('loss'):
             self.loss = tf.reduce_mean(
@@ -108,21 +109,23 @@ class DeepQNetwork:
             # c_names(collections_names) are the collections to store variables
             c_names = ['target_net_params', tf.GraphKeys.GLOBAL_VARIABLES]
 
-            # first layer. collections is used later when assign to target net
+            # 第一層
             with tf.variable_scope('l1'):
-                w1 = tf.get_variable(
-                    'w1', [self.n_features, n_l1], initializer=w_initializer, collections=c_names)
-                b1 = tf.get_variable(
-                    'b1', [1, n_l1], initializer=b_initializer, collections=c_names)
-                l1 = tf.nn.relu(tf.matmul(self.s_, w1) + b1)
-
-            # second layer. collections is used later when assign to target net
+                w1 = tf.get_variable('w1', [self.n_features, n_l1], initializer=w_initializer, collections=c_names)
+                b1 = tf.get_variable('b1', [1, n_l1], initializer=b_initializer, collections=c_names)
+                l1 = tf.nn.elu(tf.matmul(self.s_, w1) + b1)
+            
+            # 新增中間層，與 eval_net 保持一致
             with tf.variable_scope('l2'):
-                w2 = tf.get_variable(
-                    'w2', [n_l1, self.n_actions], initializer=w_initializer, collections=c_names)
-                b2 = tf.get_variable(
-                    'b2', [1, self.n_actions], initializer=b_initializer, collections=c_names)
-                self.q_next = tf.matmul(l1, w2) + b2
+                w2 = tf.get_variable('w2', [n_l1, n_l2], initializer=w_initializer, collections=c_names)
+                b2 = tf.get_variable('b2', [1, n_l2], initializer=b_initializer, collections=c_names)
+                l2 = tf.nn.elu(tf.matmul(l1, w2) + b2)
+
+            # 輸出層
+            with tf.variable_scope('l3'):
+                w3 = tf.get_variable('w3', [n_l2, self.n_actions], initializer=w_initializer, collections=c_names)
+                b3 = tf.get_variable('b3', [1, self.n_actions], initializer=b_initializer, collections=c_names)
+                self.q_next = tf.matmul(l2, w3) + b3
 
     def store_transition(self, s, a, r, s_):
         # 儲存轉換經驗到記憶體
@@ -170,6 +173,7 @@ class DeepQNetwork:
         # check to replace target parameters
         if self.learn_step_counter % self.replace_target_iter == 0:
             self.sess.run(self.replace_target_op)
+            # 知道 DQN 正在執行其穩定性機制，保持學習過程的穩定性。
             print('\ntarget_params_replaced\n')
 
         # sample batch memory from all memory
@@ -236,11 +240,51 @@ class DeepQNetwork:
         self.learn_step_counter += 1
 
     def plot_cost(self):
-        # 繪製學習曲線
-        # 顯示訓練過程中的損失變化
-
+        """繪製學習曲線（僅顯示平滑曲線）"""
         import matplotlib.pyplot as plt
-        plt.plot(np.arange(len(self.cost_his)), self.cost_his)
-        plt.ylabel('Cost')
-        plt.xlabel('training steps')
+        
+        # 創建新的圖形，使用深色背景主題
+        plt.style.use('seaborn-darkgrid')
+        fig = plt.figure(figsize=(12, 6))
+        
+        # 計算移動平均來平滑曲線
+        window_size = 50
+        smoothed_costs = pd.Series(self.cost_his).rolling(window=window_size, min_periods=1).mean()
+        
+        # 只繪製平滑後的曲線
+        plt.plot(np.arange(len(smoothed_costs)), smoothed_costs, 'b-', linewidth=2, label='Training Cost')
+        
+        # 設置圖表樣式
+        plt.title('DQN Training Cost over Time', fontsize=14, pad=15)
+        plt.ylabel('Cost', fontsize=12)
+        plt.xlabel('Training Steps', fontsize=12)
+        plt.legend(loc='upper right')
+        
+        # 添加網格和優化視覺效果
+        plt.grid(True, linestyle='--', alpha=0.7)
+        plt.tight_layout()
+        
+        # 顯示圖表
         plt.show()
+
+    def save_model(self, save_path='./saved_model/model.ckpt'):
+        """保存模型"""
+        import os
+        # 確保保存目錄存在
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        
+        # 創建 Saver 對象
+        saver = tf.train.Saver()
+        
+        # 保存模型
+        save_path = saver.save(self.sess, save_path)
+        print(f"模型已保存至: {save_path}")
+
+    def load_model(self, load_path='./saved_model/model.ckpt'):
+        """加載模型"""
+        # 創建 Saver 對象
+        saver = tf.train.Saver()
+        
+        # 加載模型
+        saver.restore(self.sess, load_path)
+        print(f"模型已從 {load_path} 加載")

@@ -48,7 +48,8 @@ for i_episode in range(10):
 
         ep_r += reward
         if done:
-            get = '| Get' if observation_[0] >= env.unwrapped.goal_position else '| ----'
+            get = '| Get' if observation_[
+                0] >= env.unwrapped.goal_position else '| ----'
             print('Epi: ', i_episode,
                   get,
                   '| Ep_r: ', round(ep_r, 4),

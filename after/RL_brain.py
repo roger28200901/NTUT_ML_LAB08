@@ -99,8 +99,11 @@ class DeepQNetwork:
             self.loss = tf.reduce_mean(
                 tf.squared_difference(self.q_target, self.q_eval))
         with tf.variable_scope('train'):
-            self._train_op = tf.train.RMSPropOptimizer(
-                self.lr).minimize(self.loss)
+            # 添加梯度裁剪
+            optimizer = tf.train.RMSPropOptimizer(self.lr)
+            gradients = optimizer.compute_gradients(self.loss)
+            capped_gradients = [(tf.clip_by_value(grad, -1., 1.), var) for grad, var in gradients if grad is not None]
+            self._train_op = optimizer.apply_gradients(capped_gradients)
 
         # ------------------ build target_net ------------------
         self.s_ = tf.placeholder(

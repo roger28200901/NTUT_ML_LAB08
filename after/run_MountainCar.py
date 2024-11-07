@@ -12,6 +12,7 @@ from RL_brain import DeepQNetwork
 import math
 import warnings
 import os
+import numpy as np
 
 warnings.filterwarnings('ignore')
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
@@ -27,23 +28,28 @@ print("observation_space.low",env.observation_space.low)
 RL = DeepQNetwork(
     n_actions=3,
     n_features=2,
-    learning_rate=0.0005,        # 降低學習率，使學習更穩定
-    reward_decay=0.95,           # 稍微降低折扣因子
+    learning_rate=0.001,        # 降低學習率，使學習更穩定
     e_greedy=0.9,                # 略微降低初始探索率
-    replace_target_iter=200,      # 增加目標網絡更新間隔
-    memory_size=20000,           # 增加記憶體大小
-    batch_size=32,               # 減小批次大小
-    e_greedy_increment=0.001     # 逐漸減少探索，增加利用
+    replace_target_iter=300,      # 增加目標網絡更新間隔
+    memory_size=3000,           # 增加記憶體大小
+    batch_size=64,               # 批次大小
+    e_greedy_increment=0.0002     # 逐漸減少探索，增加利用
 )
+# n_actions=3, n_features=2, learning_rate=0.001, e_greedy=0.9,
+#                   replace_target_iter=300, memory_size=3000,
+#                   e_greedy_increment=0.0002
 
 total_steps = 0
 
 
 # 主要訓練循環
-for i_episode in range(100):
+for i_episode in range(12):
 
     observation = env.reset()    # 重置環境
     ep_r = 0                     # 初始化每集的總獎勵
+    steps_in_episode = 0        # 新增：記錄每回合的步數
+    max_steps = 200  # 添加最大步數限制
+    
     while True:
         # env.render()  # 註釋掉訓練時的渲染
         action = RL.choose_action(observation)  # 根據當前狀態選擇動作
@@ -55,18 +61,29 @@ for i_episode in range(100):
         
         # 優化獎勵函數
         reward = 0
-        # 基礎懲罰
-        reward -= 1
-        
-        # 位置獎勵
-        reward += math.pow(position + 0.5, 2)  # 鼓勵向右移動
-        
-        # 速度獎勵
-        reward += math.pow(abs(velocity), 2)   # 鼓勵積累動能
-        
-        # 到達目標的額外獎勵
+        # 基於位置的獎勵，越接近目標獎勵越大
+        position_reward = (position - (-1.2)) / (0.6 - (-1.2))
+        reward += 2.0 * position_reward  # 增加位置獎勵的權重
+
+        # 基於速度的獎勵，鼓勵更大的速度
+        velocity_reward = abs(velocity) / 0.07
+        reward += velocity_reward
+
+        # 如果正在往右移動且位置較高，給予更大的獎勵
+        if velocity > 0 and position > -0.5:
+            reward += 1.0
+
+        # 到達目標時給予更大的獎勵
         if position >= env.unwrapped.goal_position:
-            reward += 100
+            reward = 5.0
+            done = True
+
+        # 如果超過最大步數，給予懲罰並結束回合
+        if steps_in_episode >= max_steps:
+            reward = -1.0
+            done = True
+
+        reward = np.clip(reward, -1, 5)  # 調整獎勵範圍
 
         # 儲存當前的轉換 (狀態, 動作, 獎勵, 新狀態)
         RL.store_transition(observation, action, reward, observation_)
@@ -76,6 +93,8 @@ for i_episode in range(100):
             RL.learn()
 
         ep_r += reward
+        steps_in_episode += 1    # 新增：步數計數
+
         if done:
             get = '| Get' if observation_[
                 0] >= env.unwrapped.goal_position else '| ----'
@@ -83,6 +102,10 @@ for i_episode in range(100):
                   get,
                   '| Ep_r: ', round(ep_r, 4),
                   '| Epsilon: ', round(RL.epsilon, 2))
+            
+            # 新增：打印詳細的統計資訊
+            print(f'回合: {i_episode}, 總步數: {steps_in_episode}, '
+                  f'總獎勵: {ep_r:.1f}, 最終位置: {observation_[0]:.3f}')
             break
 
         # 更新狀態
@@ -90,8 +113,8 @@ for i_episode in range(100):
         total_steps += 1
 
         # 每100回合渲染一次
-        if i_episode % 100 == 0:
-            env.render()
+        # if i_episode % 100 == 0:
+        #     env.render()
 
     # 在訓練結束後保存模型
     RL.save_model()

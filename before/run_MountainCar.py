@@ -29,6 +29,7 @@ for i_episode in range(10):
 
     observation = env.reset()
     ep_r = 0
+    steps_in_episode = 0 # 新增：紀錄每回的步數
     while True:
         env.render()
 
@@ -47,6 +48,8 @@ for i_episode in range(10):
             RL.learn()
 
         ep_r += reward
+        steps_in_episode += 1    # 新增：步數計數
+        
         if done:
             get = '| Get' if observation_[
                 0] >= env.unwrapped.goal_position else '| ----'
@@ -54,6 +57,10 @@ for i_episode in range(10):
                   get,
                   '| Ep_r: ', round(ep_r, 4),
                   '| Epsilon: ', round(RL.epsilon, 2))
+            
+             # 新增：打印詳細的統計資訊
+            print(f'回合: {i_episode}, 總步數: {steps_in_episode}, '
+                  f'總獎勵: {ep_r:.1f}, 最終位置: {observation_[0]:.3f}')
             break
 
         observation = observation_

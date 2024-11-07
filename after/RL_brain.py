@@ -177,7 +177,7 @@ class DeepQNetwork:
         if self.learn_step_counter % self.replace_target_iter == 0:
             self.sess.run(self.replace_target_op)
             # 知道 DQN 正在執行其穩定性機制，保持學習過程的穩定性。
-            print('\ntarget_params_replaced\n')
+            # print('\ntarget_params_replaced\n')
 
         # sample batch memory from all memory
         if self.memory_counter > self.memory_size:

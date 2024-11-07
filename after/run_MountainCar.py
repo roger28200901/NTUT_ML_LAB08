@@ -28,22 +28,22 @@ print("observation_space.low",env.observation_space.low)
 RL = DeepQNetwork(
     n_actions=3,
     n_features=2,
-    learning_rate=0.001,        # 降低學習率，使學習更穩定
-    e_greedy=0.9,                # 略微降低初始探索率
-    replace_target_iter=300,      # 增加目標網絡更新間隔
-    memory_size=3000,           # 增加記憶體大小
-    batch_size=64,               # 批次大小
-    e_greedy_increment=0.0002     # 逐漸減少探索，增加利用
+    learning_rate=0.0005,        # 降低學習率
+    e_greedy=0.9,               # 降低初始探索率
+    replace_target_iter=300,     # 增加目標網絡更新間隔
+    memory_size=10000,          # 增加記憶體大小
+    batch_size=64,              # 增加批次大小
+    e_greedy_increment=0.0001  # 降低探索遞減率
 )
-# n_actions=3, n_features=2, learning_rate=0.001, e_greedy=0.9,
-#                   replace_target_iter=300, memory_size=3000,
-#                   e_greedy_increment=0.0002
+# n_actions=3, n_features=2, learning_rate=0.0001, e_greedy=0.9,
+#                   replace_target_iter=300, memory_size=10000,
+#                   e_greedy_increment=0.00005
 
 total_steps = 0
 
 
 # 主要訓練循環
-for i_episode in range(12):
+for i_episode in range(20):
 
     observation = env.reset()    # 重置環境
     ep_r = 0                     # 初始化每集的總獎勵
@@ -61,29 +61,23 @@ for i_episode in range(12):
         
         # 優化獎勵函數
         reward = 0
-        # 基於位置的獎勵，越接近目標獎勵越大
+        # 基於位置的獎勵
         position_reward = (position - (-1.2)) / (0.6 - (-1.2))
-        reward += 2.0 * position_reward  # 增加位置獎勵的權重
+        reward += 3.0 * position_reward  # 增加位置獎勵的權重
 
-        # 基於速度的獎勵，鼓勵更大的速度
+        # 基於速度的獎勵
         velocity_reward = abs(velocity) / 0.07
-        reward += velocity_reward
+        reward += 2.0 * velocity_reward  # 增加速度獎勵的權重
 
-        # 如果正在往右移動且位置較高，給予更大的獎勵
-        if velocity > 0 and position > -0.5:
-            reward += 1.0
+        # 組合獎勵
+        if velocity > 0 and position > -0.4:  # 調整位置閾值
+            reward *= 1.5
 
-        # 到達目標時給予更大的獎勵
         if position >= env.unwrapped.goal_position:
-            reward = 5.0
+            reward = 10.0  # 增加目標獎勵
             done = True
 
-        # 如果超過最大步數，給予懲罰並結束回合
-        if steps_in_episode >= max_steps:
-            reward = -1.0
-            done = True
-
-        reward = np.clip(reward, -1, 5)  # 調整獎勵範圍
+        reward = np.clip(reward, -2, 10)  # 擴大獎勵範圍
 
         # 儲存當前的轉換 (狀態, 動作, 獎勵, 新狀態)
         RL.store_transition(observation, action, reward, observation_)

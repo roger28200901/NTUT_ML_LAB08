@@ -2,6 +2,33 @@
 
 This is MountainCar Lab. For NTUT_ML class
 
+## 專案結構
+
+-   `RL_brain.py`: DQN 代理實作
+-   `run_MountainCar.py`: 主要訓練腳本
+
+## Network Architecture
+
+DQN 使用三層神經網絡：
+
+-   輸入層：狀態特徵（位置和速度）
+-   隱藏層 1：64 個節點，使用 ELU 激活函數
+-   隱藏層 2：32 個節點，使用 ELU 激活函數
+-   輸出層：每個動作的 Q 值
+
+## 更新的一些事情
+
+-   目標網絡更新（每 100 步）
+-   梯度裁剪以提高穩定性
+-   將 ReLU 改為 ELU 激活函數
+    -   原始 ReLU 版本可能在訓練初期表現不穩定
+    -   ELU 版本通常能提供：
+    -   更快的收斂速度
+    -   更穩定的學習曲線
+    -   更好的最終性能
+-   模型保存/加載功能
+-   增強的視覺化工具
+
 ## Reward Function
 
 對於狀態 $s_t = (x_t, \dot{x}t)$，其中：

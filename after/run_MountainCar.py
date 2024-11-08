@@ -13,6 +13,7 @@ import math
 import warnings
 import os
 import numpy as np
+from reward_functions import calculate_mountain_car_reward
 
 warnings.filterwarnings('ignore')
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
@@ -28,12 +29,13 @@ print("observation_space.low",env.observation_space.low)
 RL = DeepQNetwork(
     n_actions=3,
     n_features=2,
-    learning_rate=0.0005,        # 降低學習率
-    e_greedy=0.9,               # 降低初始探索率
-    replace_target_iter=300,     # 增加目標網絡更新間隔
-    memory_size=10000,          # 增加記憶體大小
-    batch_size=64,              # 增加批次大小
-    e_greedy_increment=0.0001  # 降低探索遞減率
+    learning_rate=0.001,        # 降低初始學習率
+    e_greedy=0.9,
+    replace_target_iter=200,     
+    memory_size=20000,          # 增加記憶體大小
+    batch_size=64,              # 減小批次大小以增加更新頻率
+    e_greedy_increment=0.0002,  # 降低探索遞減率
+    output_graph=True
 )
 # n_actions=3, n_features=2, learning_rate=0.0001, e_greedy=0.9,
 #                   replace_target_iter=300, memory_size=10000,
@@ -43,14 +45,13 @@ total_steps = 0
 
 
 # 主要訓練循環
-for i_episode in range(20):
-
+for i_episode in range(100):  # 增加訓練回合數
     observation = env.reset()    # 重置環境
     ep_r = 0                     # 初始化每集的總獎勵
     steps_in_episode = 0        # 新增：記錄每回合的步數
-    max_steps = 200  # 添加最大步數限制
+    max_steps = 1000  # 增加最大步數限制
     
-    while True:
+    while True:  # 使用步數限制
         # env.render()  # 註釋掉訓練時的渲染
         action = RL.choose_action(observation)  # 根據當前狀態選擇動作
 
@@ -59,47 +60,26 @@ for i_episode in range(20):
 
         position, velocity = observation_
         
-        # 優化獎勵函數
-        reward = 0
-        # 基於位置的獎勵
-        position_reward = (position - (-1.2)) / (0.6 - (-1.2))
-        reward += 3.0 * position_reward  # 增加位置獎勵的權重
-
-        # 基於速度的獎勵
-        velocity_reward = abs(velocity) / 0.07
-        reward += 2.0 * velocity_reward  # 增加速度獎勵的權重
-
-        # 組合獎勵
-        if velocity > 0 and position > -0.4:  # 調整位置閾值
-            reward *= 1.5
+        # 使用導入的獎勵函數
+        reward = calculate_mountain_car_reward(position, velocity, env.unwrapped.goal_position)
 
         if position >= env.unwrapped.goal_position:
-            reward = 10.0  # 增加目標獎勵
             done = True
-
-        reward = np.clip(reward, -2, 10)  # 擴大獎勵範圍
 
         # 儲存當前的轉換 (狀態, 動作, 獎勵, 新狀態)
         RL.store_transition(observation, action, reward, observation_)
 
-        # 如果已經有足夠的記憶數據，開始學習
-        if total_steps > 1000:
-            RL.learn()
+        if total_steps > 1000:  # 更頻繁地學習
+          RL.learn()
 
         ep_r += reward
         steps_in_episode += 1    # 新增：步數計數
 
+        # FIXME: here has some problem 
         if done:
-            get = '| Get' if observation_[
-                0] >= env.unwrapped.goal_position else '| ----'
-            print('Epi: ', i_episode,
-                  get,
-                  '| Ep_r: ', round(ep_r, 4),
-                  '| Epsilon: ', round(RL.epsilon, 2))
-            
-            # 新增：打印詳細的統計資訊
-            print(f'回合: {i_episode}, 總步數: {steps_in_episode}, '
-                  f'總獎勵: {ep_r:.1f}, 最終位置: {observation_[0]:.3f}')
+            print(f'回合: {i_episode}, 步數: {steps_in_episode}, '
+                  f'總獎勵: {ep_r:.1f}, 最終位置: {position:.3f}, '
+                  f'最終速度: {velocity:.3f}, Epsilon: {RL.epsilon:.3f}')
             break
 
         # 更新狀態
@@ -109,6 +89,22 @@ for i_episode in range(20):
         # 每100回合渲染一次
         # if i_episode % 100 == 0:
         #     env.render()
+
+
+        # 添加早停機制
+        if i_episode > 200 and ep_r < -500:  # 如果表現太差就重新開始訓練
+            print("重置模型...")
+            RL.reset_model()
+            continue
+        
+        # 每50回合評估一次
+        # if i_episode % 50 == 0:
+        #     eval_rewards = []
+        #     for _ in range(5):  # 進行5次評估
+        #         eval_reward = evaluate_episode(env, RL)
+        #         eval_rewards.append(eval_reward)
+        #     avg_reward = np.mean(eval_rewards)
+        #     print(f"評估回合平均獎勵: {avg_reward:.2f}")
 
     # 在訓練結束後保存模型
     RL.save_model()

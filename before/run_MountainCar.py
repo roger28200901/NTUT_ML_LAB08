@@ -25,13 +25,13 @@ RL = DeepQNetwork(n_actions=3, n_features=2, learning_rate=0.001, e_greedy=0.9,
 total_steps = 0
 
 
-for i_episode in range(10):
+for i_episode in range(100):
 
     observation = env.reset()
     ep_r = 0
     steps_in_episode = 0 # 新增：紀錄每回的步數
     while True:
-        env.render()
+        # env.render()
 
         action = RL.choose_action(observation)
 

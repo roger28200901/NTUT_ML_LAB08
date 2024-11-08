@@ -21,13 +21,13 @@ class DeepQNetwork:
             self,
             n_actions,      # 動作空間大小
             n_features,     # 狀態特徵數量
-            learning_rate=0.001,     # 略微提高學習率
-            reward_decay=0.95,        # 提高獎勵衰減率 (gamma)
+            learning_rate=0.01,     # 學習率
+            reward_decay=0.9,        # 獎勵衰減率
             e_greedy=0.9,             # epsilon-貪婪策略中的 epsilon 最大值
-            replace_target_iter=100,  # 減少目標網絡更新間隔
-            memory_size=5000,        # 適當減少記憶體大小以加快採樣
-            batch_size=32,            # 減小批次大小以加快訓練
-            e_greedy_increment=0.002,  # 加快探索率增長
+            replace_target_iter=100,  # 目標網絡更新間隔
+            memory_size=5000,        # 記憶體大小
+            batch_size=32,            # 批次大小
+            e_greedy_increment=0.002,  # 探索率增長
             output_graph=False,       # 是否輸出計算圖
     ):
         self.n_actions = n_actions

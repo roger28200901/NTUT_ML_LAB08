@@ -48,23 +48,26 @@ DQN 使用三層神經網絡：
 -   $x_t$ 是位置，範圍 $[-1.2, 0.6]$
 -   $\dot{x}t$ 是速度，範圍 $[-0.07, 0.07]$
 
-獎勵函數 $R(s_t)$ 可以表示為：
-$$R(s_t) = R_{position} + R_{velocity} + R_{direction} + R_{goal} + R_{timeout}$$
-
-其中各項為：
+獎勵函數 $R(s_t)$ 由以下幾個部分組成：
 
 -   位置獎勵 $R_{position}$：
-    $$R_{position} = 2.0 \cdot \frac{x_t - (-1.2)}{0.6 - (-1.2)}$$
+    $$R_{position} = 5.0 \cdot \frac{x_t - (-1.2)}{0.6 - (-1.2)}$$
 
 -   速度獎勵 $R_{velocity}$：
-    $$R_{velocity} = \frac{|\dot{x}t|}{0.07}$$
-
--   方向獎勵 $R_{direction}$：
 
     $$
-    R_{direction} = \begin{cases}
-    1.0 & \text{if } \dot{x}t > 0 \text{ and } x_t > -0.5 \\
-    0 & \text{otherwise}
+    R_{velocity} = 3.0 \cdot \frac{|\dot{x}t|}{0.07} \cdot \begin{cases}
+    2.0 & \text{if } \dot{x}t > 0 \text{ and } x_t > -0.4 \\
+    1.0 & \text{otherwise}
+    \end{cases}
+    $$
+
+-   接近頂部獎勵 $R_{top}$：
+
+    $$
+    R_{top} = \begin{cases}
+    1.5 \cdot (R_{position} + R_{velocity}) & \text{if } x_t \geq -0.2 \\
+    R_{position} + R_{velocity} & \text{otherwise}
     \end{cases}
     $$
 
@@ -72,17 +75,27 @@ $$R(s_t) = R_{position} + R_{velocity} + R_{direction} + R_{goal} + R_{timeout}$
 
     $$
     R_{goal} = \begin{cases}
-    5.0 & \text{if } x_t \geq 0.5 \\
+    20.0 & \text{if } x_t \geq 0.5 \\
+    R_{top} & \text{otherwise}
+    \end{cases}
+    $$
+
+-   低位置懲罰 $R_{penalty}$：
+    $$
+    R_{penalty} = \begin{cases}
+    -1.0 & \text{if } |\dot{x}t| < 0.001 \text{ and } x_t < -0.8 \\
     0 & \text{otherwise}
     \end{cases}
     $$
 
-最後，總獎勵被限制在 [-1, 5] 範圍內：
-$$R_{final}(s_t) = \text{clip}(R(s_t), -1, 5)$$
+最後，總獎勵被限制在 [-3, 20] 範圍內：
+$$R_{final}(s_t) = \text{clip}(R_{goal} + R_{penalty}, -3, 20)$$
 
-這個獎勵函數的設計考慮了：
+這個優化後的獎勵函數特點：
 
--   加強向目標移動的獎勵（位置獎勵權重為 2.0）
--   鼓勵積累動能（速度獎勵）
--   鼓勵向右移動（方向獎勵）
--   達到目標時給予較大獎勵（目標獎勵為 5.0）
+-   提供更強的位置獎勵（權重為 5.0）
+-   在上坡時給予雙倍速度獎勵
+-   接近頂部時（x ≥ -0.2）提供 1.5 倍獎勵
+-   達到目標時給予較大獎勵（20.0）
+-   懲罰在低位置停滯不前的情況
+-   更大的獎勵範圍（-3 到 20）以提供更強的學習信號

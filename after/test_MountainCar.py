@@ -90,4 +90,4 @@ def test_model(n_episodes=10, render=True):
     env.close()
 
 if __name__ == '__main__':
-    test_model(n_episodes=100, render=False)
+    test_model(n_episodes=10, render=True)

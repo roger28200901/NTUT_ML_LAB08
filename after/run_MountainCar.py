@@ -29,7 +29,7 @@ print("observation_space.low",env.observation_space.low)
 RL = DeepQNetwork(
     n_actions=3,
     n_features=2,
-    learning_rate=0.001,        # 降低初始學習率
+    learning_rate=0.0015,        # 降低初始學習率
     e_greedy=0.9,
     replace_target_iter=200,     
     memory_size=20000,          # 增加記憶體大小

@@ -29,12 +29,12 @@ print("observation_space.low",env.observation_space.low)
 RL = DeepQNetwork(
     n_actions=3,
     n_features=2,
-    learning_rate=0.0015,        # 降低初始學習率
+    learning_rate=0.0015,        # 提升學習率 0.001 -> 0.0015
     e_greedy=0.9,
-    replace_target_iter=200,     
-    memory_size=20000,          # 增加記憶體大小
-    batch_size=64,              # 減小批次大小以增加更新頻率
-    e_greedy_increment=0.0002,  # 降低探索遞減率
+    replace_target_iter=200,     # 減少目標網絡更新頻率 300 -> 200
+    memory_size=20000,          # 增加記憶體大小 500 -> 20000
+    batch_size=64,              # 批次大小以增加更新頻率 32 -> 64
+    e_greedy_increment=0.0002, 
     output_graph=True
 )
 # n_actions=3, n_features=2, learning_rate=0.0001, e_greedy=0.9,
@@ -86,26 +86,12 @@ for i_episode in range(100):  # 增加訓練回合數
         observation = observation_
         total_steps += 1
 
-        # 每100回合渲染一次
-        # if i_episode % 100 == 0:
-        #     env.render()
-
-
         # 添加早停機制
         if i_episode > 200 and ep_r < -500:  # 如果表現太差就重新開始訓練
             print("重置模型...")
             RL.reset_model()
             continue
-        
-        # 每50回合評估一次
-        # if i_episode % 50 == 0:
-        #     eval_rewards = []
-        #     for _ in range(5):  # 進行5次評估
-        #         eval_reward = evaluate_episode(env, RL)
-        #         eval_rewards.append(eval_reward)
-        #     avg_reward = np.mean(eval_rewards)
-        #     print(f"評估回合平均獎勵: {avg_reward:.2f}")
-
+          
     # 在訓練結束後保存模型
     RL.save_model()
 

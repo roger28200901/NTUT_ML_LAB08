@@ -87,7 +87,7 @@ for i_episode in range(100):  # 增加訓練回合數
         total_steps += 1
 
         # 添加早停機制
-        if i_episode > 200 and ep_r < -500:  # 如果表現太差就重新開始訓練
+        if ep_r < -500:  # 如果表現太差就重新開始訓練
             print("重置模型...")
             RL.reset_model()
             continue

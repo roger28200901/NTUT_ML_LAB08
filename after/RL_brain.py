@@ -63,6 +63,7 @@ class DeepQNetwork:
 
         self.sess.run(tf.global_variables_initializer())
         self.cost_his = []
+        self.test_cost_his = []
 
     def _build_net(self):
         # ------------------ build evaluate_net ------------------
@@ -236,6 +237,15 @@ class DeepQNetwork:
                                      feed_dict={self.s: batch_memory[:, :self.n_features],
                                                 self.q_target: q_target})
         self.cost_his.append(self.cost)
+        
+        # 計算並儲存測試損失（不進行反向傳播）
+        test_cost = self.sess.run(
+            self.loss,
+            feed_dict={
+                self.s: batch_memory[:, :self.n_features],
+                self.q_target: q_target
+            })
+        self.test_cost_his.append(test_cost)
 
         # increasing epsilon
         self.epsilon = self.epsilon + \
@@ -243,7 +253,7 @@ class DeepQNetwork:
         self.learn_step_counter += 1
 
     def plot_cost(self):
-        """繪製學習曲線（僅顯示平滑曲線）"""
+        """繪製訓練和測試的學習曲線"""
         import matplotlib.pyplot as plt
         
         # 創建新的圖形，使用深色背景主題
@@ -252,13 +262,17 @@ class DeepQNetwork:
         
         # 計算移動平均來平滑曲線
         window_size = 50
-        smoothed_costs = pd.Series(self.cost_his).rolling(window=window_size, min_periods=1).mean()
+        smoothed_train_costs = pd.Series(self.cost_his).rolling(window=window_size, min_periods=1).mean()
+        smoothed_test_costs = pd.Series(self.test_cost_his).rolling(window=window_size, min_periods=1).mean()
         
-        # 只繪製平滑後的曲線
-        plt.plot(np.arange(len(smoothed_costs)), smoothed_costs, 'b-', linewidth=2, label='Training Cost')
+        # 繪製訓練和測試損失曲線
+        plt.plot(np.arange(len(smoothed_train_costs)), smoothed_train_costs, 
+                'b-', linewidth=2, label='Training Cost')
+        plt.plot(np.arange(len(smoothed_test_costs)), smoothed_test_costs, 
+                'r-', linewidth=2, label='Test Cost')
         
         # 設置圖表樣式
-        plt.title('DQN Training Cost over Time', fontsize=14, pad=15)
+        plt.title('DQN Training and Test Costs over Time', fontsize=14, pad=15)
         plt.ylabel('Cost', fontsize=12)
         plt.xlabel('Training Steps', fontsize=12)
         plt.legend(loc='upper right')
